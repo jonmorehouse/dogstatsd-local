@@ -8,4 +8,6 @@ FROM scratch
 
 COPY --from=0 /dogstatsd-local .
 EXPOSE 8125
+
+ENTRYPOINT ["/dogstatsd-local"]
 CMD ["/dogstatsd-local"]
