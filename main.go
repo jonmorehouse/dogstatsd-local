@@ -85,6 +85,7 @@ func main() {
 
 	// create a new server and listen on a background goroutine
 	addr := fmt.Sprintf("%s:%d", *host, *port)
+	log.Println("Listening over UDP at %s", addr)
 	srv := newServer(addr, asyncHandler.handler)
 	wg.Add(1)
 	go func(srv server) {
