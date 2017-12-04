@@ -70,10 +70,11 @@ func main() {
 
 	extraTags := strings.Split(*rawTags, ",")
 	var handler msgHandler
+
 	if *format == "json" {
 		handler = newJsonDogstatsdMsgHandler(extraTags)
-	} else if *format == "std" {
-		handler = newStdDogstatsdMsgHandler(extraTags)
+	} else if *format == "human" {
+		handler = newHumanDogstatsdMsgHandler(extraTags)
 	} else {
 		handler = newRawDogstatsdMsgHandler()
 	}

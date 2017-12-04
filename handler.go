@@ -55,7 +55,7 @@ func newJsonDogstatsdMsgHandler(extraTags []string) msgHandler {
 	}
 }
 
-func newStdDogstatsdMsgHandler(extraTags []string) msgHandler {
+func newHumanDogstatsdMsgHandler(extraTags []string) msgHandler {
 	return func(msg []byte) error {
 		dMsg, err := parseDogstatsdMsg(msg)
 		if err != nil {
@@ -68,7 +68,7 @@ func newStdDogstatsdMsgHandler(extraTags []string) msgHandler {
 			return nil
 		}
 
-		tmpl := "metric:%s|%s.%s|%s|%f"
+		tmpl := "metric:%s|%s.%s|%.2f"
 		str := fmt.Sprintf(tmpl, metric.metricType.String(), metric.namespace, metric.name, metric.floatValue)
 
 		if metric.metricType == timerMetricType {
@@ -80,14 +80,16 @@ func newStdDogstatsdMsgHandler(extraTags []string) msgHandler {
 			str += " " + tag
 		}
 
-		log.Println(str)
+		fmt.Fprintf(os.Stdout, str)
+		fmt.Fprintf(os.Stdout, "\n")
 		return nil
 	}
 }
 
 func newRawDogstatsdMsgHandler() msgHandler {
 	return func(msg []byte) error {
-		log.Println(string(msg))
+		fmt.Fprintf(os.Stdout, string(msg))
+		fmt.Fprintf(os.Stdout, "\n")
 		return nil
 	}
 }

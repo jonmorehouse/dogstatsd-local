@@ -5,9 +5,9 @@
 
 [Datadog](https://www.datadog.com) is great for production application metric aggregation. This project was inspired by the need to inspect and debug metrics _before_ sending them to `datadog`.
 
-`dogstatsd-local` is a small program which understands the `dogstatsd` and `statsd` protocols. It listens on a local UDP server and writes metrics, events and service checks per the [dogstatsd protocol](https://docs.datadoghq.com/guides/dogstatsd/) to `stdout` in configurable formats (json, std and raw).
+`dogstatsd-local` is a small program which understands the `dogstatsd` and `statsd` protocols. It listens on a local UDP server and writes metrics, events and service checks per the [dogstatsd protocol](https://docs.datadoghq.com/guides/dogstatsd/) to `stdout` in user configurable formats.
 
-This can be helpful for _debugging_ metrics themselves, and to prevent polluting datadog with noisy metrics from a development environment.
+This can be helpful for _debugging_ metrics themselves, and to prevent polluting datadog with noisy metrics from a development environment. **dogstatsd-local** can also be used to pipe metrics as json to other processes for further processing.
 
 ## Usage
 
@@ -22,7 +22,7 @@ $ ./dogstatsd-local -port=8126
 
 ### Prebuilt Binaries
 
-TODO
+**Coming soon**
 
 ### Docker
 
@@ -40,7 +40,7 @@ When writing a metric such as:
 $ printf "namespace.metric:1|c|#test" | nc -cu  localhost 8125
 ```
 
-Running **dogstatsd-local** with the `-format raw` flag will output the following:
+Running **dogstatsd-local** with the `-format raw` flag will output the plain udp packet:
 
 ```bash
 $ docker run -p 8125 jonmorehouse/dogstatsd-local -format raw
@@ -55,11 +55,12 @@ When writing a metric such as:
 $ printf "namespace.metric:1|c|#test" | nc -cu  localhost 8125
 ```
 
-Running **dogstatsd-local** with the `-format human` flag will output the following:
+Running **dogstatsd-local** with the `-format human` flag will output a human readable metric:
 
 ```bash
-$ docker run -p 8125 jonmorehouse/dogstatsd-local -format raw
-2017/12/03 23:11:31 namespace.metric.name:1|c|@1.00|#tag1
+$ docker run -p 8125 jonmorehouse/dogstatsd-local -format human
+metric:counter|namespace.metric|1.00  test
+
 ```
 
 ### JSON
@@ -69,7 +70,8 @@ When writing a metric such as:
 $ printf "namespace.metric:1|c|#test|extra" | nc -cu  localhost 8125
 ```
 
-Running **dogstatsd-local** with the `-format json` flag will output the following:
+Running **dogstatsd-local** with the `-format json` flag will output json:
+
 ```bash
 $ docker run -p 8125 jonmorehouse/dogstatsd-local -format json | jq .
 {"namespace":"namespace","name":"metric","path":"namespace.metric","value":1,"extras":["extra"],"sample_rate":1,"tags":["test"]}
