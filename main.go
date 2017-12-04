@@ -1,66 +1,105 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
-	"net"
+	"os"
+	"os/signal"
+	"strings"
 	"sync"
 )
 
-type msg struct {
-	addr string
-	data []byte
+type msgHandler func([]byte) error
+
+type asyncMsgHandler interface {
+	handler([]byte) error
+	stop()
 }
 
-func server(host string, port int, msgCh chan msg) error {
-	serverAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", host, port))
-	if err != nil {
-		return err
+type handler struct {
+	fn    msgHandler
+	msgCh chan ([]byte)
+	wg    sync.WaitGroup
+}
+
+func newAsyncMsgHandler(fn msgHandler, poolSize int, bufferSize int) asyncMsgHandler {
+	h := &handler{
+		fn:    fn,
+		msgCh: make(chan []byte, bufferSize),
 	}
 
-	serverConn, err := net.ListenUDP("udp", serverAddr)
-	if err != nil {
-		return err
-	}
-	defer serverConn.Close()
+	h.wg.Add(poolSize)
 
-	buf := make([]byte, 1024)
-	for {
-		n, addr, err := serverConn.ReadFromUDP(buf)
-		msgCh <- msg{
-			addr: addr.String(),
-			data: buf[:n],
-		}
-
-		log.Printf("Received %d", n)
-		if err != nil {
-			log.Println(err.Error())
-		}
+	// build a pool of goroutines to listen for messages to process
+	for i := 0; i < poolSize; i++ {
+		go func() {
+			defer h.wg.Done()
+			for msg := range h.msgCh {
+				h.fn(msg)
+			}
+		}()
 	}
+
+	return h
+}
+
+// submit to the pool
+func (a handler) handler(msg []byte) error {
+	select {
+	case a.msgCh <- msg:
+		return nil
+	default:
+	}
+
+	return errors.New("POOL_CAPACITY_EXCEEDED")
+}
+
+func (a *handler) stop() {
+	close(a.msgCh)
+	a.wg.Wait()
 }
 
 func main() {
-	port := flag.Int("listen-port", 8126, "listen port; default 8126")
-	host := flag.String("listen-host", "0.0.0.0", "listen host; default 0.0.0.0")
+	host := flag.String("host", "0.0.0.0", "bind address")
+	port := flag.Int("port", 8125, "listen port")
+	format := flag.String("format", "stdout", "output format: json|std|raw")
+	rawTags := flag.String("tags", "", "extra tags: comma delimited")
 	flag.Parse()
 
-	handlerCh := make(chan msg, 10)
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		for _ = range handlerCh {
-			log.Println("connection received...")
-		}
-
-		wg.Done()
-	}()
-
-	if err := server(*host, *port, handlerCh); err != nil {
-		log.Fatalf(err.Error())
+	extraTags := strings.Split(*rawTags, ",")
+	var handler msgHandler
+	if *format == "json" {
+		handler = newJsonDogstatsdMsgHandler(extraTags)
+	} else if *format == "std" {
+		handler = newStdDogstatsdMsgHandler(extraTags)
+	} else {
+		handler = newRawDogstatsdMsgHandler()
 	}
 
-	close(handlerCh)
+	asyncHandler := newAsyncMsgHandler(handler, 1000, 10000)
+
+	var wg sync.WaitGroup
+
+	// create a new server and listen on a background goroutine
+	addr := fmt.Sprintf("%s:%d", *host, *port)
+	srv := newServer(addr, asyncHandler.handler)
+	wg.Add(1)
+	go func(srv server) {
+		defer wg.Done()
+		if err := srv.listen(); err != nil {
+			log.Fatalf(err.Error())
+		}
+	}(srv)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	<-sigCh
+
+	if err := srv.stop(); err != nil {
+		log.Println(err.Error())
+	}
 	wg.Wait()
+	asyncHandler.stop()
 }

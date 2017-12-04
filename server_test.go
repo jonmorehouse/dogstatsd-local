@@ -2,6 +2,6 @@ package main
 
 import "testing"
 
-func TestServerAccept(t *testing.T) {
-	go server()
+func TestServerHandler(t *testing.T) {
+
 }
