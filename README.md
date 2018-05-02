@@ -27,7 +27,7 @@ $ ./dogstatsd-local -port=8126
 ### Docker
 
 ```bash
-$ docker run -p 8126:8126 jonmorehouse/dogstatsd-local
+$ docker run -p 8125:8125/udp jonmorehouse/dogstatsd-local
 ```
 
 ## Sample Formats
@@ -43,7 +43,7 @@ $ printf "namespace.metric:1|c|#test" | nc -cu  localhost 8125
 Running **dogstatsd-local** with the `-format raw` flag will output the plain udp packet:
 
 ```bash
-$ docker run -p 8125 jonmorehouse/dogstatsd-local -format raw
+$ docker run -p 8125:8125/udp jonmorehouse/dogstatsd-local -format raw
 2017/12/03 23:11:31 namespace.metric.name:1|c|@1.00|#tag1
 ```
 
@@ -58,7 +58,7 @@ $ printf "namespace.metric:1|c|#test" | nc -cu  localhost 8125
 Running **dogstatsd-local** with the `-format human` flag will output a human readable metric:
 
 ```bash
-$ docker run -p 8125 jonmorehouse/dogstatsd-local -format human
+$ docker run -p 8125:8125/udp jonmorehouse/dogstatsd-local -format human
 metric:counter|namespace.metric|1.00  test
 
 ```
@@ -73,14 +73,14 @@ $ printf "namespace.metric:1|c|#test|extra" | nc -cu  localhost 8125
 Running **dogstatsd-local** with the `-format json` flag will output json:
 
 ```bash
-$ docker run -p 8125 jonmorehouse/dogstatsd-local -format json | jq .
+$ docker run -p 8125:8125/udp jonmorehouse/dogstatsd-local -format json | jq .
 {"namespace":"namespace","name":"metric","path":"namespace.metric","value":1,"extras":["extra"],"sample_rate":1,"tags":["test"]}
 ```
 
 **dogstatsd-local** can be piped to any process that understands json via stdin. For example, to pretty print JSON with [jq](https://stedolan.github.io/jq/):
 
 ```bash
-$ docker run -p 8125 jonmorehouse/dogstatsd-local -format json | jq .
+$ docker run -p 8125:8125/udp jonmorehouse/dogstatsd-local -format json | jq .
 {
   "namespace": "namespace",
   "name": "metric",
